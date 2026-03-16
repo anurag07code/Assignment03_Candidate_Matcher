@@ -11,3 +11,4 @@ langchain-text-splitters
 rank_bm25
 pydantic>=2.0.0
 pypdf
+unstructured

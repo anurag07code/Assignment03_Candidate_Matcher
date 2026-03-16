@@ -70,8 +70,20 @@ def ingest_documents(directory_path: str):
 
         if path.endswith(".pdf"):
             loader = PyPDFLoader(path)
-        elif path.endswith(".csv") or path.endswith(".json"):
+        elif path.endswith(".csv"):
             loader = CSVLoader(path)
+        elif path.endswith(".json"):
+            from langchain_community.document_loaders import JSONLoader
+            loader = JSONLoader(path)
+        elif path.endswith(".txt"):
+            from langchain_community.document_loaders import TextLoader
+            loader = TextLoader(path)
+        elif path.endswith(".xlsx") or path.endswith(".xls"):
+            from langchain_community.document_loaders import UnstructuredExcelLoader
+            loader = UnstructuredExcelLoader(path)
+        elif path.endswith(".docx"):
+            from langchain_community.document_loaders import UnstructuredWordDocumentLoader
+            loader = UnstructuredWordDocumentLoader(path)
         elif path.endswith(".md"):
             loader = UnstructuredMarkdownLoader(path)
         else:
