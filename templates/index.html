@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>Intelligent Research Dashboard</title>
+    <title>GenAI Candidate Matcher</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -12,58 +12,61 @@
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="brand">
-                <div class="brand-icon">IR</div>
+                <div class="brand-icon">CM</div>
                 <div>
-                    <div class="brand-text-title">Insight Research</div>
-                    <div class="brand-text-sub">Agentic Knowledge Console</div>
+                    <div class="brand-text-title">Candidate Matcher</div>
+                    <div class="brand-text-sub">Hybrid retrieval + explainable scoring</div>
                 </div>
             </div>
 
-            <!-- Workspace setup inside sidebar (clean upload + build) -->
+            <!-- Matcher setup -->
             <section class="panel" style="margin-top: 12px;">
                 <header class="panel-header">
                     <div class="panel-header-left">
-                        <div class="panel-title">Workspace Setup</div>
-                        <div class="panel-subtitle">Upload documents and build your vector database.</div>
+                        <div class="panel-title">Job + Resumes</div>
+                        <div class="panel-subtitle">Upload resumes and paste a GenAI Engineer job description.</div>
                     </div>
                 </header>
 
                 <div class="panel-body">
+                    <div class="field-stack">
+                        <label class="field-label" for="jdInput">Job description</label>
+                        <textarea id="jdInput" class="jd-textarea" rows="10" placeholder="Paste the job description here…"></textarea>
+                        <div class="field-help">Include Must-Have / Important / Nice-to-Have for best results.</div>
+                    </div>
+
                     <div class="upload-dropzone"
                          id="uploadDropzone"
-                         onclick="document.getElementById('fileInput').click();"
+                         onclick="document.getElementById('resumeInput').click();"
                          ondragover="handleDragOver(event)"
                          ondrop="handleDrop(event)">
                         <div class="upload-icon">⬆️</div>
-                        <div class="upload-title">Drop documents here or click to browse</div>
-                        <div class="upload-subtitle">PDF, CSV/JSON, Markdown</div>
-                        <input type="file" id="fileInput" multiple style="display:none" onchange="updateFileList()" />
+                        <div class="upload-title">Drop resumes here or click to browse</div>
+                        <div class="upload-subtitle">PDF only</div>
+                        <input type="file" id="resumeInput" multiple accept="application/pdf,.pdf" style="display:none" onchange="updateResumeList()" />
                     </div>
-                    <div id="fileList" class="file-list"></div>
+                    <div id="resumeList" class="file-list"></div>
 
                     <div class="upload-actions">
-                        <button type="button" onclick="uploadFiles()">
-                            Upload documents
-                        </button>
-                        <button id="processBtn" type="button" onclick="processDocuments()" disabled>
-                            Build vector DB
-                        </button>
+                        <button type="button" onclick="uploadResumes()">Upload resumes</button>
+                        <button id="buildMatcherBtn" type="button" onclick="buildMatcherIndex()" disabled>Build matcher index</button>
+                        <button id="runMatchBtn" type="button" onclick="runMatching()" disabled>Run matching</button>
                     </div>
 
                     <div id="buildProgress" class="progress-wrapper" style="display:none;">
-                        <div class="progress-label" id="buildProgressLabel">Building vector database… 0%</div>
+                        <div class="progress-label" id="buildProgressLabel">Building matcher… 0%</div>
                         <div class="progress-bar">
                             <div class="progress-bar-fill" id="buildProgressFill" style="width:0%;"></div>
                         </div>
                         <div id="vectorAnim" class="vector-anim" style="display:none;">
                             <div class="vector-anim-icon"></div>
-                            <span>Vector DB ready for chat</span>
+                            <span>Matcher index ready</span>
                         </div>
                     </div>
 
                     <div id="uploadStatus" class="status-msg"></div>
                     <div id="chatHint" class="status-msg status-ok" style="display:none; margin-top:4px;">
-                        Vector DB ready — start chatting in the console on the right.
+                        Matcher ready — run matching to generate ranked reports.
                     </div>
                 </div>
             </section>
@@ -74,8 +77,8 @@
             <!-- Top bar -->
             <header class="top-bar">
                 <div class="top-bar-left">
-                    <div class="top-greeting">Welcome back, Researcher</div>
-                    <div class="top-title">Intelligent Research Assistant</div>
+                    <div class="top-greeting">Welcome back</div>
+                    <div class="top-title">GenAI Candidate Matcher</div>
                 </div>
 
                 <div class="top-bar-right">
@@ -85,7 +88,7 @@
                             <div class="toggle-thumb" id="toggleThumb">☀️</div>
                         </div>
                     </div>
-                    <div class="avatar-circle">IR</div>
+                    <div class="avatar-circle">CM</div>
                 </div>
             </header>
 
@@ -95,37 +98,26 @@
                 <section class="panel">
                     <header class="panel-header">
                         <div class="panel-header-left">
-                            <div class="panel-title">AI Response Console</div>
-                            <div class="panel-subtitle">Streaming output grounded in your uploaded research corpus.</div>
+                            <div class="panel-title">Match Reports</div>
+                            <div class="panel-subtitle">Ranked candidates with fit score, strengths/gaps, and confidence.</div>
                         </div>
                     </header>
 
                     <div class="response-shell">
                         <div class="response-header">
-                            <span>Agent Dispatcher</span>
+                            <span>Matcher Output</span>
                             <span class="response-chip">
                                 <span id="activeToolLabel">Waiting</span>
                             </span>
                         </div>
                         <div id="response" class="response-body">
-                            <div class="chat-empty">Upload and process documents, then start asking questions.</div>
-                        </div>
-                        <div class="chat-input-row">
-                            <input
-                                type="text"
-                                id="queryInput"
-                                class="chat-input"
-                                placeholder="Ask a question about your PDFs, CSV/JSON, or Markdown…"
-                            />
-                            <button type="button" onclick="askQuestion()">
-                                <span class="btn-icon">🤖</span>
-                                Ask Agent
-                            </button>
+                            <div class="chat-empty">Upload resumes, paste the job description, build the matcher, then run matching.</div>
                         </div>
                         <div class="tag-row">
-                            <span class="tag">SUMMARY mode</span>
-                            <span class="tag">COMPARATIVE mode</span>
-                            <span class="tag">QA mode</span>
+                            <span class="tag">Dense + BM25</span>
+                            <span class="tag">Metadata filters</span>
+                            <span class="tag">Ensemble ranking</span>
+                            <span class="tag">Explainable reports</span>
                         </div>
                     </div>
                 </section>
@@ -172,19 +164,6 @@
             applyTheme(isDark ? "light" : "dark");
         });
 
-        // Submit query on Enter key inside the chat input
-        document.addEventListener("DOMContentLoaded", function () {
-            const input = document.getElementById("queryInput");
-            if (input) {
-                input.addEventListener("keydown", function (event) {
-                    if (event.key === "Enter" && !event.shiftKey) {
-                        event.preventDefault();
-                        askQuestion();
-                    }
-                });
-            }
-        });
-
         // --- App state helpers for UI ---
         function updateUploadedCount(count) {
             const el = document.getElementById("uploadedCount");
@@ -217,10 +196,10 @@
                 .replace(/'/g, "&#039;");
         }
 
-        // --- Backend integration (existing Flask routes) ---
+        // --- Backend integration (candidate matcher) ---
 
-        function renderFileList(files) {
-            const list = document.getElementById("fileList");
+        function renderResumeList(files) {
+            const list = document.getElementById("resumeList");
             if (!list) return;
             if (!files || files.length === 0) {
                 list.innerHTML = "";
@@ -232,10 +211,10 @@
                 .join("");
         }
 
-        function updateFileList() {
-            const input = document.getElementById("fileInput");
+        function updateResumeList() {
+            const input = document.getElementById("resumeInput");
             const files = input ? input.files : null;
-            renderFileList(files || []);
+            renderResumeList(files || []);
         }
 
         function handleDragOver(event) {
@@ -246,16 +225,16 @@
             event.preventDefault();
             const dt = event.dataTransfer;
             if (!dt || !dt.files || dt.files.length === 0) return;
-            const input = document.getElementById("fileInput");
+            const input = document.getElementById("resumeInput");
             if (input) {
                 input.files = dt.files;
             }
-            updateFileList();
+            updateResumeList();
         }
 
-        // Step 1: Upload files to the 'uploads' folder
-        async function uploadFiles() {
-            const input = document.getElementById("fileInput");
+        // Step 1: Upload resumes (stored under uploads/; backend indexes uploads/resumes/)
+        async function uploadResumes() {
+            const input = document.getElementById("resumeInput");
             const files = input ? input.files : null;
             if (!files || files.length === 0) {
                 alert("Please select files first");
@@ -285,8 +264,8 @@
                     status.classList.add("status-ok");
                 }
 
-                const processBtn = document.getElementById("processBtn");
-                if (processBtn) processBtn.disabled = false;
+                const buildBtn = document.getElementById("buildMatcherBtn");
+                if (buildBtn) buildBtn.disabled = false;
             } catch (err) {
                 if (status) {
                     status.textContent = "Upload failed. Please retry.";
@@ -305,7 +284,7 @@
             wrapper.style.display = "block";
             let pct = 0;
             fill.style.width = "0%";
-            label.textContent = "Building vector database… 0%";
+            label.textContent = "Building matcher… 0%";
 
             if (buildProgressTimer) {
                 clearInterval(buildProgressTimer);
@@ -314,7 +293,7 @@
             buildProgressTimer = setInterval(() => {
                 pct = Math.min(pct + 2, 96); // keep under 100 until backend finishes
                 fill.style.width = pct + "%";
-                label.textContent = `Building vector database… ${pct}%`;
+                label.textContent = `Building matcher… ${pct}%`;
             }, 150);
         }
 
@@ -331,30 +310,37 @@
             }
 
             if (fill) fill.style.width = "100%";
-            if (label) label.textContent = successMessage || "Vector database built — 100%";
+            if (label) label.textContent = successMessage || "Matcher index built — 100%";
             if (wrapper) wrapper.style.display = "block";
             if (chatHint) chatHint.style.display = "block";
             if (vectorAnim) vectorAnim.style.display = "flex";
         }
 
-        // Step 2: Trigger the LangChain ingestion/chunking
-        async function processDocuments() {
+        // Step 2: Build matcher index (resumes only)
+        async function buildMatcherIndex() {
             const status = document.getElementById("uploadStatus");
             if (status) {
-                status.textContent = "Building vector DB… this may take a minute.";
+                status.textContent = "Building matcher index… this may take a minute.";
                 status.classList.remove("status-ok", "status-error");
             }
             setKbStatus("Building…", null);
             startBuildProgressAnimation();
 
             try {
-                const res = await fetch("/process", { method: "POST" });
+                const res = await fetch("/matcher/build", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({})
+                });
                 const data = await res.json();
 
                 const ok = !res || res.ok;
-                const msg = data.message || "Vector DB ready.";
+                const msg = data.message || "Matcher ready.";
                 setKbStatus(msg, ok);
                 completeBuildProgressAnimation(msg);
+
+                const runBtn = document.getElementById("runMatchBtn");
+                if (runBtn) runBtn.disabled = !ok;
             } catch (err) {
                 setKbStatus("Failed to build knowledge base.", false);
                 if (buildProgressTimer) {
@@ -365,107 +351,118 @@
             }
         }
 
-        // Step 3: Send query to the Agent Dispatcher
-        async function askQuestion() {
-            const input = document.getElementById("queryInput");
+        // Step 3: Run matching and render ranked reports
+        function renderMatchResults(payload) {
             const responseEl = document.getElementById("response");
-            if (!input || !responseEl) return;
+            if (!responseEl) return;
 
-            const query = input.value.trim();
-            if (!query) {
-                alert("Enter a question.");
+            const results = Array.isArray(payload?.results) ? payload.results : [];
+            const clusters = payload?.job_clusters?.clusters || [];
+
+            let html = "";
+            if (clusters.length) {
+                html += `<div class="match-block">`;
+                html += `<div class="match-title">Job skill clusters (weights)</div>`;
+                html += `<div class="match-meta">Weights are validated to sum to 1.0</div>`;
+                html += `<div class="cluster-row">` + clusters.map(c =>
+                    `<span class="cluster-pill"><strong>${escapeHtml(String(c.name))}</strong> ${(Number(c.weight) * 100).toFixed(0)}%</span>`
+                ).join("") + `</div>`;
+                html += `</div>`;
+            }
+
+            if (!results.length) {
+                html += `<div class="match-block"><div class="match-title">No candidates ranked</div><div class="match-meta">Try uploading more resumes or improving the job description.</div></div>`;
+                responseEl.innerHTML = html;
                 return;
             }
-            // clear the input after capturing the query
-            input.value = "";
 
-            setActiveToolLabel("Routing…");
-            const userBubble = `
-                <div class="chat-message">
-                    <div class="chat-message-user-label">You</div>
-                    <div class="chat-message-user">${escapeHtml(query)}</div>
-                </div>
-            `;
-            const thinkingBubble = `
-                <div class="chat-message">
-                    <div class="chat-message-ai-label">Assistant</div>
-                    <div class="chat-message-ai">🤖 Thinking (Agent Dispatcher routing your query)…</div>
-                </div>
-            `;
-            // Append instead of replacing, to keep history
-            responseEl.innerHTML += userBubble + thinkingBubble;
-            responseEl.scrollTop = responseEl.scrollHeight;
+            html += `<div class="match-block">`;
+            html += `<div class="match-title">Ranked candidates</div>`;
+            html += `<div class="match-meta">Click any row to see the full explanation + detailed JSON scoring.</div>`;
+            html += `<table class="match-table"><thead><tr><th>Rank</th><th>Candidate</th><th>Fit</th><th>Confidence</th><th>Stage</th><th>Strengths</th><th>Gaps</th></tr></thead><tbody>`;
+            for (let i = 0; i < results.length; i++) {
+                const r = results[i];
+                const fit = Number(r.final_fit_score || 0).toFixed(1);
+                const strengths = (r.strengths || []).slice(0, 6).map(escapeHtml).join(", ");
+                const gaps = (r.gaps || []).slice(0, 6).map(escapeHtml).join(", ");
+                const stage = escapeHtml(String(r.stage || "-"));
+                html += `<tr class="match-row" data-idx="${i}">
+                    <td>${escapeHtml(String(r.rank))}</td>
+                    <td><strong>${escapeHtml(String(r.candidate_id))}</strong></td>
+                    <td>${escapeHtml(fit)}</td>
+                    <td>${escapeHtml(String(r.confidence || "medium"))}</td>
+                    <td>${stage}</td>
+                    <td>${strengths || "-"}</td>
+                    <td>${gaps || "-"}</td>
+                </tr>`;
+            }
+            html += `</tbody></table>`;
+            html += `<div id="detailPanel" class="match-detail" style="display:none;">
+                <div class="match-detail-title" id="detailTitle">Candidate details</div>
+                <div class="match-detail-sub">Explanation</div>
+                <pre class="match-detail-pre" id="detailExplanation"></pre>
+                <div class="match-detail-sub">Structured JSON (scoring + evidence)</div>
+                <pre class="match-detail-pre" id="detailJson"></pre>
+            </div>`;
+            html += `</div>`;
+
+            responseEl.innerHTML = html;
+
+            // Row click → show detail panel
+            const rows = responseEl.querySelectorAll(".match-row");
+            for (const row of rows) {
+                row.addEventListener("click", () => {
+                    const idx = Number(row.getAttribute("data-idx") || "0");
+                    const item = results[idx] || {};
+                    const panel = document.getElementById("detailPanel");
+                    const title = document.getElementById("detailTitle");
+                    const exp = document.getElementById("detailExplanation");
+                    const js = document.getElementById("detailJson");
+                    if (!panel || !title || !exp || !js) return;
+                    panel.style.display = "block";
+                    title.textContent = `Candidate: ${String(item.candidate_id || "")} (rank ${String(item.rank || "")})`;
+                    exp.textContent = String(item.explanation || "(No explanation returned.)");
+                    try {
+                        js.textContent = JSON.stringify(item.details || {}, null, 2);
+                    } catch {
+                        js.textContent = String(item.details || "");
+                    }
+                    panel.scrollIntoView({ behavior: "smooth", block: "start" });
+                });
+            }
+        }
+
+        async function runMatching() {
+            const responseEl = document.getElementById("response");
+            if (!responseEl) return;
+            setActiveToolLabel("Matching…");
+            responseEl.innerHTML = `<div class="chat-message"><div class="chat-message-ai-label">Matcher</div><div class="chat-message-ai">Running hybrid retrieval + scoring…</div></div>`;
 
             try {
-                const res = await fetch("/ask", {
+                const jd = (document.getElementById("jdInput")?.value || "").trim();
+                if (!jd) {
+                    alert("Please paste a job description first.");
+                    setActiveToolLabel("Waiting");
+                    return;
+                }
+                const res = await fetch("/matcher/match", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ query })
+                    // top_k omitted/0 => backend returns all uploaded resumes
+                    body: JSON.stringify({ top_k: 0, job_description: jd })
                 });
                 const data = await res.json();
-
-                const answer = typeof data.answer === "string" ? data.answer : "(No response returned.)";
-
-                // Prefer markdown rendering when `marked` is available
-                let renderedAnswer;
-                if (window.marked && typeof window.marked.parse === "function") {
-                    renderedAnswer = window.marked.parse(answer);
-                } else {
-                    renderedAnswer = escapeHtml(answer).replace(/\n/g, "<br>");
+                if (!res.ok) {
+                    setActiveToolLabel("Error");
+                    responseEl.innerHTML = `<div class="chat-message"><div class="chat-message-ai-label">Matcher</div><div class="chat-message-ai">${escapeHtml(data.message || "Failed to match candidates.")}</div></div>`;
+                    return;
                 }
-
-                let aiContent = `<div class="markdown-body">${renderedAnswer}</div>`;
-
-                if (Array.isArray(data.citations) && data.citations.length > 0) {
-                    aiContent += `<div style="margin-top:8px;font-size:11px;color:#9ca3af;">Sources & scores</div>`;
-                    aiContent += `<ul style="margin:4px 0 0;padding-left:16px;font-size:11px;">`;
-                    for (const c of data.citations) {
-                        const src = escapeHtml(c.source_file || "unknown");
-                        const loc = c.location ? ` (${escapeHtml(c.location)})` : "";
-                        let scoreLabel = "";
-                        if (typeof c.score === "number") {
-                            scoreLabel = `${c.score.toFixed(1)}%`;
-                        } else if (c.confidence) {
-                            scoreLabel = escapeHtml(String(c.confidence));
-                        } else {
-                            scoreLabel = "n/a";
-                        }
-                        aiContent += `<li><strong>${src}${loc}</strong> — score: ${scoreLabel}</li>`;
-                    }
-                    aiContent += `</ul>`;
-                }
-
-                const chatHtml = `
-                    <div class="chat-message">
-                        <div class="chat-message-ai-label">Assistant</div>
-                        <div class="chat-message-ai">${aiContent}</div>
-                    </div>
-                `;
-
-                // Replace only the last "thinking" message with the final answer:
-                // simplest approach: append new AI answer and keep history.
-                responseEl.innerHTML += chatHtml;
-                responseEl.scrollTop = responseEl.scrollHeight;
-
-                if (typeof data.tool === "string") {
-                    const label =
-                        data.tool === "summary"
-                            ? "SUMMARY tool"
-                            : data.tool === "comparative"
-                            ? "COMPARATIVE tool"
-                            : data.tool === "factual_qa"
-                            ? "QA tool"
-                            : data.tool === "clarification"
-                            ? "Clarification agent"
-                            : "Agent response";
-                    setActiveToolLabel(label);
-                } else {
-                    setActiveToolLabel("Agent response");
-                }
+                setActiveToolLabel("Match report");
+                renderMatchResults(data);
             } catch (err) {
                 responseEl.textContent = "Error calling backend. Check server logs.";
                 setActiveToolLabel("Error");
-                console.error("Ask error:", err);
+                console.error("Match error:", err);
             }
         }
     </script>
