@@ -351,85 +351,34 @@
             }
         }
 
-        // Step 3: Run matching and render ranked reports
+        // Step 3: Run matching and render ranked reports (LLM-style narrative)
         function renderMatchResults(payload) {
             const responseEl = document.getElementById("response");
             if (!responseEl) return;
 
             const results = Array.isArray(payload?.results) ? payload.results : [];
-            const clusters = payload?.job_clusters?.clusters || [];
-
-            let html = "";
-            if (clusters.length) {
-                html += `<div class="match-block">`;
-                html += `<div class="match-title">Job skill clusters (weights)</div>`;
-                html += `<div class="match-meta">Weights are validated to sum to 1.0</div>`;
-                html += `<div class="cluster-row">` + clusters.map(c =>
-                    `<span class="cluster-pill"><strong>${escapeHtml(String(c.name))}</strong> ${(Number(c.weight) * 100).toFixed(0)}%</span>`
-                ).join("") + `</div>`;
-                html += `</div>`;
-            }
+            const narrative = payload?.narrative || "";
 
             if (!results.length) {
-                html += `<div class="match-block"><div class="match-title">No candidates ranked</div><div class="match-meta">Try uploading more resumes or improving the job description.</div></div>`;
-                responseEl.innerHTML = html;
+                responseEl.innerHTML = `<div class="chat-message"><div class="chat-message-ai-label">Matcher</div><div class="chat-message-ai">No candidates ranked. Try uploading more resumes or improving the job description.</div></div>`;
                 return;
             }
 
-            html += `<div class="match-block">`;
-            html += `<div class="match-title">Ranked candidates</div>`;
-            html += `<div class="match-meta">Click any row to see the full explanation + detailed JSON scoring.</div>`;
-            html += `<table class="match-table"><thead><tr><th>Rank</th><th>Candidate</th><th>Fit</th><th>Confidence</th><th>Stage</th><th>Strengths</th><th>Gaps</th></tr></thead><tbody>`;
-            for (let i = 0; i < results.length; i++) {
-                const r = results[i];
-                const fit = Number(r.final_fit_score || 0).toFixed(1);
-                const strengths = (r.strengths || []).slice(0, 6).map(escapeHtml).join(", ");
-                const gaps = (r.gaps || []).slice(0, 6).map(escapeHtml).join(", ");
-                const stage = escapeHtml(String(r.stage || "-"));
-                html += `<tr class="match-row" data-idx="${i}">
-                    <td>${escapeHtml(String(r.rank))}</td>
-                    <td><strong>${escapeHtml(String(r.candidate_id))}</strong></td>
-                    <td>${escapeHtml(fit)}</td>
-                    <td>${escapeHtml(String(r.confidence || "medium"))}</td>
-                    <td>${stage}</td>
-                    <td>${strengths || "-"}</td>
-                    <td>${gaps || "-"}</td>
-                </tr>`;
+            // Render as LLM-style narrative (markdown)
+            const contentEl = document.createElement("div");
+            contentEl.className = "chat-message-ai match-narrative";
+            if (typeof marked !== "undefined" && narrative) {
+                const parseFn = marked.parse || marked;
+                contentEl.innerHTML = parseFn(narrative);
+            } else {
+                contentEl.textContent = narrative || "Match report generated.";
             }
-            html += `</tbody></table>`;
-            html += `<div id="detailPanel" class="match-detail" style="display:none;">
-                <div class="match-detail-title" id="detailTitle">Candidate details</div>
-                <div class="match-detail-sub">Explanation</div>
-                <pre class="match-detail-pre" id="detailExplanation"></pre>
-                <div class="match-detail-sub">Structured JSON (scoring + evidence)</div>
-                <pre class="match-detail-pre" id="detailJson"></pre>
-            </div>`;
-            html += `</div>`;
-
-            responseEl.innerHTML = html;
-
-            // Row click → show detail panel
-            const rows = responseEl.querySelectorAll(".match-row");
-            for (const row of rows) {
-                row.addEventListener("click", () => {
-                    const idx = Number(row.getAttribute("data-idx") || "0");
-                    const item = results[idx] || {};
-                    const panel = document.getElementById("detailPanel");
-                    const title = document.getElementById("detailTitle");
-                    const exp = document.getElementById("detailExplanation");
-                    const js = document.getElementById("detailJson");
-                    if (!panel || !title || !exp || !js) return;
-                    panel.style.display = "block";
-                    title.textContent = `Candidate: ${String(item.candidate_id || "")} (rank ${String(item.rank || "")})`;
-                    exp.textContent = String(item.explanation || "(No explanation returned.)");
-                    try {
-                        js.textContent = JSON.stringify(item.details || {}, null, 2);
-                    } catch {
-                        js.textContent = String(item.details || "");
-                    }
-                    panel.scrollIntoView({ behavior: "smooth", block: "start" });
-                });
-            }
+            responseEl.innerHTML = "";
+            const wrapper = document.createElement("div");
+            wrapper.className = "chat-message";
+            wrapper.innerHTML = '<div class="chat-message-ai-label">Matcher</div>';
+            wrapper.appendChild(contentEl);
+            responseEl.appendChild(wrapper);
         }
 
         async function runMatching() {

@@ -494,6 +494,45 @@ button:disabled {
     font-size: 13px;
 }
 
+/* LLM-style narrative (markdown rendered) */
+.match-narrative {
+    padding: 16px 18px;
+    line-height: 1.6;
+}
+
+.match-narrative h2 {
+    font-size: 1.1em;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    color: inherit;
+}
+
+.match-narrative h3 {
+    font-size: 1em;
+    font-weight: 600;
+    margin: 20px 0 8px 0;
+    color: inherit;
+}
+
+.match-narrative hr {
+    border: none;
+    border-top: 1px solid rgba(148, 163, 184, 0.3);
+    margin: 16px 0;
+}
+
+.match-narrative p {
+    margin: 0 0 8px 0;
+}
+
+.match-narrative strong {
+    font-weight: 600;
+}
+
+.match-narrative ul {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
 /* New: JD field + match table */
 textarea {
     font-size: 13px;
